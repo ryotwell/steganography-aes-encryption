@@ -1,42 +1,60 @@
 from PIL import Image
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
-from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import unpad
 import base64
 
-def decode_image(image_path):
-    img = Image.open(image_path)
-    binary_message = ""
-    for x in range(img.width):
-        for y in range(img.height):
-            pixel = list(img.getpixel((x, y)))
-            for i in range(3):  # Untuk RGB
-                binary_message += str(pixel[i] & 1)
+class ImageDecryptor:
+    def __init__(self, key, iv):
+        self.key = key
+        self.iv = iv
     
-    message = ""
-    for i in range(0, len(binary_message), 8):
-        byte = binary_message[i:i + 8]
-        if byte == '11111111':
-            break
-        message += chr(int(byte, 2))
+    def decode_image(self, image_path):
+        """Extract hidden message from image using LSB steganography"""
+        img = Image.open(image_path)
+        binary_message = self._extract_binary_message(img)
+        return self._binary_to_text(binary_message)
+    
+    def _extract_binary_message(self, img):
+        """Extract binary message from image pixels"""
+        binary_message = ""
+        for x in range(img.width):
+            for y in range(img.height):
+                pixel = list(img.getpixel((x, y)))
+                for color in range(3):  # RGB channels
+                    binary_message += str(pixel[color] & 1)
+        return binary_message
+    
+    def _binary_to_text(self, binary_message):
+        """Convert binary message to text"""
+        message = ""
+        for i in range(0, len(binary_message), 8):
+            byte = binary_message[i:i + 8]
+            if byte == '11111111':  # End marker
+                break
+            message += chr(int(byte, 2))
+        return message
 
-    return message
+    def decrypt_message(self, encrypted_message):
+        """Decrypt message using AES-CBC"""
+        iv_bytes = base64.b64decode(self.iv)
+        ct_bytes = base64.b64decode(encrypted_message)
+        cipher = AES.new(self.key, AES.MODE_CBC, iv_bytes)
+        return unpad(cipher.decrypt(ct_bytes), AES.block_size).decode('utf-8')
 
-# Fungsi untuk dekripsi pesan menggunakan AES
-def decrypt_message(key, iv, ct):
-    iv = base64.b64decode(iv)
-    ct = base64.b64decode(ct)
-    cipher = AES.new(key, AES.MODE_CBC, iv)
-    pt = unpad(cipher.decrypt(ct), AES.block_size).decode('utf-8')
-    return pt
+def main():
+    # Configuration
+    KEY = b'\xc6\xbeX\xdd-b\xed\x95\x7f\xcdm^\x7f\xb5\x85\xb1'
+    IV = '4p/J/Spx2efDZthaNwfKPA=='
+    IMAGE_PATH = 'output/image_20241103_153529_tRCLOte1.png'
+    
+    # Process
+    decryptor = ImageDecryptor(KEY, IV)
+    encoded_message = decryptor.decode_image(IMAGE_PATH)
+    decrypted_message = decryptor.decrypt_message(encoded_message)
+    
+    # Output results
+    print(f'Encrypted Message: {encoded_message}')
+    print(f'Decrypted: {decrypted_message}')
 
-key                 = b'b\x80\xd3\x17\xcea\x03[1\xc6\xb7\xb5\xf9\xf0\x12N'
-iv                  = 'iqEaX9Jx3DPY35p1YfBSxQ=='
-output_image_path   = 'output_image.png'
-
-# Mendekode pesan dari gambar
-decoded_encrypted_message = decode_image(output_image_path)
-decrypted_message = decrypt_message(key, iv, decoded_encrypted_message)
-
-print(f"Encrypted Message   : {decoded_encrypted_message}")
-print(f"Decrypted           : {decrypted_message}")
+if __name__ == '__main__':
+    main()
