@@ -2,11 +2,8 @@ from PIL import Image
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
-import base64
-import os
+import base64, os, random, string
 from datetime import datetime
-import random
-import string
 
 class ImageEncryption:
     def __init__(self, image_path: str, output_dir: str = 'output'):
@@ -72,7 +69,7 @@ class AESCipher:
 def main():
     # Initialize encryption components
     image_path = 'image.png'
-    secret_message = 'This is a secret message.'
+    secret_message = 'NIM : 220602029 \nNama : Zulzario Zaeri'
     
     # Create instances
     aes_cipher = AESCipher()
